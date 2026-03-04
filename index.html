@@ -47,7 +47,7 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm text-gray-400 mb-2">股票代码</label>
-                    <input type="text" id="filter-ticker" placeholder="如: AMD, NVDA..." 
+                    <input type="text" id="filter-ticker" placeholder="如: AMD, NVDA..."
                            class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 </div>
                 <div>
@@ -79,12 +79,12 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                 <div>
                     <label class="block text-sm text-gray-400 mb-2">开始日期</label>
-                    <input type="date" id="filter-date-start" 
+                    <input type="date" id="filter-date-start"
                            class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-sm text-gray-400 mb-2">结束日期</label>
-                    <input type="date" id="filter-date-end" 
+                    <input type="date" id="filter-date-end"
                            class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
@@ -122,6 +122,20 @@
                     </label>
                 </div>
             </div>
+            <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700/50">
+                <label class="block text-sm text-gray-400 mb-2">交易共识比例（至少<span id="consensus-value">50</span>%分析师建议交易）</label>
+                <input type="range" id="filter-consensus" min="0" max="100" value="50"
+                       class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                       oninput="document.getElementById('consensus-value').textContent = this.value">
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100%</span>
+                </div>
+            </div>
+
             <div class="mt-4 flex gap-2">
                 <button onclick="resetFilters()" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition">
                     重置筛选
@@ -213,12 +227,13 @@
             const dateStart = document.getElementById('filter-date-start')?.value || '';
             const dateEnd = document.getElementById('filter-date-end')?.value || '';
             const sortBy = document.getElementById('sort-by')?.value || 'time-desc';
-            
+
             // 分析师筛选
             const filterPA = document.getElementById('filter-pa')?.checked || false;
             const filterMR = document.getElementById('filter-mr')?.checked || false;
             const filterQMR = document.getElementById('filter-qmr')?.checked || false;
             const filterFPD = document.getElementById('filter-fpd')?.checked || false;
+            const filterConsensus = parseInt(document.getElementById('filter-consensus')?.value || '0');
             
             // 构建选中分析师列表
             const selectedAnalysts = [];
@@ -243,6 +258,13 @@
                     if (!hasAllSelectedTrading) return false;
                 }
                 
+                // 交易共识比例筛选
+                if (filterConsensus > 0) {
+                    const tradeCount = analyses.filter(a => a.trade_signal === '交易').length;
+                    const consensusPercent = (tradeCount / analyses.length) * 100;
+                    if (consensusPercent < filterConsensus) return false;
+                }
+                
                 // Date filtering - check if any analysis falls within date range
                 if (dateStart || dateEnd) {
                     const hasValidDate = analyses.some(a => {
@@ -262,7 +284,7 @@
             filteredGroups.sort((a, b) => {
                 const analysesA = a[1];
                 const analysesB = b[1];
-                
+
                 if (sortBy === 'premium') {
                     const getPremium = (analyses) => {
                         const premium = analyses[0]?.premium || '0';
@@ -300,15 +322,15 @@
             container.innerHTML = filteredGroups.map(([optionId, analyses], idx) => {
                 const first = analyses[0];
                 const premium = first.premium !== 'N/A' ? `$${first.premium}` : 'N/A';
-                
+
                 // Get date range for this option
                 const dates = analyses.map(a => a.timestamp).filter(Boolean).sort();
                 const earliestDate = dates[0] || '';
                 const latestDate = dates[dates.length - 1] || '';
-                const dateDisplay = earliestDate === latestDate 
-                    ? earliestDate 
+                const dateDisplay = earliestDate === latestDate
+                    ? earliestDate
                     : `${earliestDate} ~ ${latestDate}`;
-                
+
                 // Calculate consensus
                 const tradeSignals = analyses.map(a => a.trade_signal);
                 const directions = analyses.map(a => a.direction);
@@ -350,21 +372,21 @@
                                         <div class="text-gray-600 mt-2">无数据</div>
                                     </div>
                                 `;
-                                
+
                                 // MR分析师特殊显示 - 突出Decision和Confidence
                                 if (ch === 'mr分析师') {
                                     const rawFields = analysis.raw_fields || {};
-                                    
+
                                     // MR分析师使用英文字段名，但显示转换为中文
                                     const rawDecision = rawFields['decision'] || 'neutral';
-                                    const decision = rawDecision === 'trade' ? '交易' : 
+                                    const decision = rawDecision === 'trade' ? '交易' :
                                                     rawDecision === 'no_trade' ? '观望' : '中性';
                                     const confidence = rawFields['confidence_score'] || analysis.confidence || 'unknown';
-                                    
+
                                     // 决定颜色（基于中文决策）
-                                    const decisionColor = decision === '交易' ? 'text-green-400' : 
+                                    const decisionColor = decision === '交易' ? 'text-green-400' :
                                                          decision === '观望' ? 'text-yellow-400' : 'text-gray-400';
-                                    
+
                                     return `
                                         <div class="bg-gray-900/70 rounded-lg p-4 ${getChannelClass(ch)}">
                                             <div class="flex items-center justify-between mb-3">
@@ -384,7 +406,7 @@
                                         </div>
                                     `;
                                 }
-                                
+
                                 return `
                                     <div class="bg-gray-900/70 rounded-lg p-4 ${getChannelClass(ch)}">
                                         <div class="flex items-center justify-between mb-2">
