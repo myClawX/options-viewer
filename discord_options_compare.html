@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期权分析对比 - Alpha夜航社</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        .bull-badge { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .bear-badge { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .neutral-badge { background: linear-gradient(135deg, #64748b, #475569); }
+        .trade-yes { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .trade-no { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .channel-pa { border-left: 4px solid #8b5cf6; }
+        .channel-mr { border-left: 4px solid #06b6d4; }
+        .channel-qmr { border-left: 4px solid #f472b6; }
+        .channel-fpd { border-left: 4px solid #84cc16; }
+        .animate-fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-gray-100">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="text-center mb-10 animate-fade-in">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                📊 期权分析对比系统
+            </h1>
+            <p class="text-gray-400 text-lg">Alpha夜航社 | 多维度策略对比</p>
+            <div class="mt-4 flex justify-center gap-4 text-sm">
+                <span class="px-3 py-1 bg-gray-800 rounded-full border border-gray-700">
+                    总分析数: <span id="total-count" class="text-blue-400 font-bold">-</span>
+                </span>
+                <span class="px-3 py-1 bg-gray-800 rounded-full border border-gray-700">
+                    对比期权: <span id="compare-count" class="text-purple-400 font-bold">-</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Filters -->
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-gray-700/50">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">股票代码</label>
+                    <input type="text" id="filter-ticker" placeholder="如: AMD, NVDA..." 
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">交易建议</label>
+                    <select id="filter-signal" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">全部</option>
+                        <option value="交易">建议交易</option>
+                        <option value="观望">建议观望</option>
+                        <option value="中性">中性</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">方向</label>
+                    <select id="filter-direction" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">全部</option>
+                        <option value="看涨">看涨 (Bull)</option>
+                        <option value="看跌">看跌 (Bear)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">最少频道数</label>
+                    <select id="filter-channels" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="2">2个及以上</option>
+                        <option value="3">3个及以上</option>
+                        <option value="4">4个全部</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">开始日期</label>
+                    <input type="date" id="filter-date-start" 
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">结束日期</label>
+                    <input type="date" id="filter-date-end" 
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">排序方式</label>
+                    <select id="sort-by" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="time-desc">时间 (最新优先)</option>
+                        <option value="time-asc">时间 (最早优先)</option>
+                        <option value="premium">Premium (高到低)</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="applyFilters()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                        应用筛选
+                    </button>
+                </div>
+            </div>
+            <div class="mt-4 flex gap-2">
+                <button onclick="resetFilters()" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition">
+                    重置筛选
+                </button>
+            </div>
+        </div>
+
+        <!-- Options Grid -->
+        <div id="options-container" class="grid grid-cols-1 gap-6">
+            <!-- Dynamic content will be inserted here -->
+        </div>
+
+        <!-- Legend -->
+        <div class="mt-12 bg-gray-800/30 rounded-xl p-6 border border-gray-700/30">
+            <h3 class="text-lg font-semibold mb-4 text-gray-300">频道说明</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                    <span class="text-sm text-gray-400">PA分析师 - Price Action</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-cyan-500"></div>
+                    <span class="text-sm text-gray-400">MR分析师 - Mean Reversion</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-pink-400"></div>
+                    <span class="text-sm text-gray-400">QMR分析师 - 快速定性</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-lime-500"></div>
+                    <span class="text-sm text-gray-400">FPD分析师 - Flow Data</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let groupedData = {};
+
+        // Load data
+        fetch('analyses_summary.json')
+            .then(r => r.json())
+            .then(data => {
+                allData = data.analyses;
+                groupedData = data.grouped;
+                document.getElementById('total-count').textContent = data.total;
+                document.getElementById('compare-count').textContent = data.multi_channel_count;
+                renderOptions();
+            })
+            .catch(err => {
+                document.getElementById('options-container').innerHTML = `
+                    <div class="text-center py-20 text-red-400">
+                        <p class="text-xl">❌ 数据加载失败</p>
+                        <p class="text-gray-400 mt-2">请确保 analyses_summary.json 文件存在</p>
+                        <p class="text-gray-500 mt-1 text-sm">${err.message}</p>
+                    </div>
+                `;
+            });
+
+        function getChannelClass(channel) {
+            const map = {
+                'pa分析师': 'channel-pa',
+                'mr分析师': 'channel-mr',
+                'qmr分析师': 'channel-qmr',
+                'fpd分析师': 'channel-fpd'
+            };
+            return map[channel] || '';
+        }
+
+        function getSignalClass(signal) {
+            if (signal === '交易') return 'trade-yes';
+            if (signal === '观望') return 'trade-no';
+            return 'neutral-badge';
+        }
+
+        function getDirectionClass(dir) {
+            if (dir === '看涨') return 'bull-badge';
+            if (dir === '看跌') return 'bear-badge';
+            return 'neutral-badge';
+        }
+
+        function renderOptions() {
+            const container = document.getElementById('options-container');
+            const minChannels = parseInt(document.getElementById('filter-channels')?.value || '2');
+            const tickerFilter = document.getElementById('filter-ticker')?.value.toUpperCase() || '';
+            const signalFilter = document.getElementById('filter-signal')?.value || '';
+            const directionFilter = document.getElementById('filter-direction')?.value || '';
+            const dateStart = document.getElementById('filter-date-start')?.value || '';
+            const dateEnd = document.getElementById('filter-date-end')?.value || '';
+            const sortBy = document.getElementById('sort-by')?.value || 'time-desc';
+
+            // Filter grouped data
+            let filteredGroups = Object.entries(groupedData).filter(([optionId, analyses]) => {
+                if (analyses.length < minChannels) return false;
+                if (tickerFilter && !optionId.startsWith(tickerFilter)) return false;
+                if (signalFilter && !analyses.some(a => a.trade_signal === signalFilter)) return false;
+                if (directionFilter && !analyses.some(a => a.direction === directionFilter)) return false;
+                
+                // Date filtering - check if any analysis falls within date range
+                if (dateStart || dateEnd) {
+                    const hasValidDate = analyses.some(a => {
+                        if (!a.timestamp) return false;
+                        const analysisDate = a.timestamp.substring(0, 10);
+                        if (dateStart && analysisDate < dateStart) return false;
+                        if (dateEnd && analysisDate > dateEnd) return false;
+                        return true;
+                    });
+                    if (!hasValidDate) return false;
+                }
+                
+                return true;
+            });
+
+            // Sort
+            filteredGroups.sort((a, b) => {
+                const analysesA = a[1];
+                const analysesB = b[1];
+                
+                if (sortBy === 'premium') {
+                    const getPremium = (analyses) => {
+                        const premium = analyses[0]?.premium || '0';
+                        return parseInt(premium.replace(/,/g, '')) || 0;
+                    };
+                    return getPremium(analysesB) - getPremium(analysesA);
+                } else if (sortBy === 'time-desc') {
+                    // Sort by latest message date
+                    const getLatestDate = (analyses) => {
+                        const dates = analyses.map(a => a.timestamp || '1970-01-01');
+                        return Math.max(...dates.map(d => new Date(d).getTime()));
+                    };
+                    return getLatestDate(analysesB) - getLatestDate(analysesA);
+                } else if (sortBy === 'time-asc') {
+                    // Sort by earliest message date
+                    const getEarliestDate = (analyses) => {
+                        const dates = analyses.map(a => a.timestamp || '2099-12-31');
+                        return Math.min(...dates.map(d => new Date(d).getTime()));
+                    };
+                    return getEarliestDate(analysesA) - getEarliestDate(analysesB);
+                }
+                return 0;
+            });
+
+            if (filteredGroups.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-20 text-gray-400">
+                        <p class="text-xl">📭 没有找到匹配的期权</p>
+                        <p class="text-gray-500 mt-2">请调整筛选条件</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredGroups.map(([optionId, analyses], idx) => {
+                const first = analyses[0];
+                const premium = first.premium !== 'N/A' ? `$${first.premium}` : 'N/A';
+                
+                // Get date range for this option
+                const dates = analyses.map(a => a.timestamp).filter(Boolean).sort();
+                const earliestDate = dates[0] || '';
+                const latestDate = dates[dates.length - 1] || '';
+                const dateDisplay = earliestDate === latestDate 
+                    ? earliestDate 
+                    : `${earliestDate} ~ ${latestDate}`;
+                
+                // Calculate consensus
+                const tradeSignals = analyses.map(a => a.trade_signal);
+                const directions = analyses.map(a => a.direction);
+                const consensusTrade = tradeSignals.filter(s => s === '交易').length >= tradeSignals.length / 2 ? '交易' : '观望';
+                const bullCount = directions.filter(d => d === '看涨').length;
+                const bearCount = directions.filter(d => d === '看跌').length;
+                const consensusDir = bullCount > bearCount ? '看涨' : bearCount > bullCount ? '看跌' : '中性';
+
+                return `
+                    <div class="bg-gray-800/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 card-hover animate-fade-in" style="animation-delay: ${idx * 0.05}s">
+                        <!-- Header -->
+                        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="text-2xl font-bold text-white">${first.ticker}</div>
+                                <div class="text-gray-400">${first.expiry} · ${first.strike}</div>
+                                <span class="px-3 py-1 rounded-full text-sm font-bold ${getDirectionClass(consensusDir)}">
+                                    ${consensusDir}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="text-right">
+                                    <div class="text-xs text-gray-500">${dateDisplay}</div>
+                                    <div class="text-sm text-gray-400">Premium</div>
+                                    <div class="text-xl font-bold text-yellow-400">${premium}</div>
+                                </div>
+                                <span class="px-4 py-2 rounded-full text-sm font-bold ${getSignalClass(consensusTrade)}">
+                                    ${consensusTrade}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Channel Analysis Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                            ${['pa分析师', 'mr分析师', 'qmr分析师', 'fpd分析师'].map(ch => {
+                                const analysis = analyses.find(a => a.channel === ch);
+                                if (!analysis) return `
+                                    <div class="bg-gray-900/50 rounded-lg p-4 opacity-50">
+                                        <div class="text-sm text-gray-500">${ch}</div>
+                                        <div class="text-gray-600 mt-2">无数据</div>
+                                    </div>
+                                `;
+                                
+                                // MR分析师特殊显示 - 突出Decision和Confidence
+                                if (ch === 'mr分析师') {
+                                    const rawFields = analysis.raw_fields || {};
+                                    
+                                    // MR分析师使用英文字段名，但显示转换为中文
+                                    const rawDecision = rawFields['decision'] || 'neutral';
+                                    const decision = rawDecision === 'trade' ? '交易' : 
+                                                    rawDecision === 'no_trade' ? '观望' : '中性';
+                                    const confidence = rawFields['confidence_score'] || analysis.confidence || 'unknown';
+                                    
+                                    // 决定颜色（基于中文决策）
+                                    const decisionColor = decision === '交易' ? 'text-green-400' : 
+                                                         decision === '观望' ? 'text-yellow-400' : 'text-gray-400';
+                                    
+                                    return `
+                                        <div class="bg-gray-900/70 rounded-lg p-4 ${getChannelClass(ch)}">
+                                            <div class="flex items-center justify-between mb-3">
+                                                <span class="text-sm font-medium text-cyan-400">MR分析师</span>
+                                                <span class="text-xs text-gray-500">${analysis.timestamp || ''}</span>
+                                            </div>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-gray-400 text-sm">决策:</span>
+                                                    <span class="text-base font-bold ${decisionColor}">${decision}</span>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-gray-400 text-sm">置信度:</span>
+                                                    <span class="text-base font-bold text-purple-400">${confidence !== 'unknown' ? confidence + '/5' : '-'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                                
+                                return `
+                                    <div class="bg-gray-900/70 rounded-lg p-4 ${getChannelClass(ch)}">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-sm font-medium text-gray-300">${ch}</span>
+                                            <span class="text-xs text-gray-500">${analysis.timestamp || ''}</span>
+                                        </div>
+                                        <div class="space-y-1 text-sm">
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">决策:</span>
+                                                <span class="${analysis.trade_signal === '交易' ? 'text-green-400' : 'text-yellow-400'}">${analysis.trade_signal}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">方向:</span>
+                                                <span class="${analysis.direction === '看涨' ? 'text-green-400' : analysis.direction === '看跌' ? 'text-red-400' : 'text-gray-400'}">${analysis.direction}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">置信度:</span>
+                                                <span class="text-purple-400">${analysis.confidence !== 'unknown' ? analysis.confidence + '/5' : '-'}</span>
+                                            </div>
+                                            ${analysis.win_rate !== 'unknown' ? `
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500">胜率:</span>
+                                                    <span class="text-blue-400">${analysis.win_rate}</span>
+                                                </div>
+                                            ` : ''}
+                                            ${analysis.risk !== 'unknown' ? `
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-500">风险:</span>
+                                                    <span class="${parseInt(analysis.risk) <= 2 ? 'text-green-400' : parseInt(analysis.risk) >= 4 ? 'text-red-400' : 'text-yellow-400'}">等级${analysis.risk}</span>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <!-- Consensus Bar -->
+                        <div class="mt-4 pt-4 border-t border-gray-700/50">
+                            <div class="flex items-center gap-4 text-sm">
+                                <span class="text-gray-400">决策共识:</span>
+                                <div class="flex-1 bg-gray-900 rounded-full h-2 overflow-hidden">
+                                    <div class="flex h-full">
+                                        <div class="bg-green-500" style="width: ${(tradeSignals.filter(s => s === '交易').length / tradeSignals.length * 100) || 0}%"></div>
+                                        <div class="bg-yellow-500" style="width: ${(tradeSignals.filter(s => s === '观望' || s === '中性').length / tradeSignals.length * 100) || 0}%"></div>
+                                    </div>
+                                </div>
+                                <span class="text-gray-400">${analyses.length} 频道 · ${Math.round((tradeSignals.filter(s => s === '交易').length / tradeSignals.length * 100) || 0)}% 建议交易</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function applyFilters() {
+            renderOptions();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-ticker').value = '';
+            document.getElementById('filter-signal').value = '';
+            document.getElementById('filter-direction').value = '';
+            document.getElementById('filter-channels').value = '2';
+            document.getElementById('filter-date-start').value = '';
+            document.getElementById('filter-date-end').value = '';
+            document.getElementById('sort-by').value = 'time-desc';
+            renderOptions();
+        }
+    </script>
+</body>
+</html>
