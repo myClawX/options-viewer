@@ -101,6 +101,27 @@
                     </button>
                 </div>
             </div>
+            <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700/50">
+                <label class="block text-sm text-gray-400 mb-3">分析师交易筛选（选中则表示该分析师必须建议交易）</label>
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="filter-pa" class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500">
+                        <span class="text-sm text-gray-300">PA分析师</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="filter-mr" class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500">
+                        <span class="text-sm text-gray-300">MR分析师</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="filter-qmr" class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500">
+                        <span class="text-sm text-gray-300">QMR分析师</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="filter-fpd" class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500">
+                        <span class="text-sm text-gray-300">FPD分析师</span>
+                    </label>
+                </div>
+            </div>
             <div class="mt-4 flex gap-2">
                 <button onclick="resetFilters()" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition">
                     重置筛选
@@ -192,6 +213,19 @@
             const dateStart = document.getElementById('filter-date-start')?.value || '';
             const dateEnd = document.getElementById('filter-date-end')?.value || '';
             const sortBy = document.getElementById('sort-by')?.value || 'time-desc';
+            
+            // 分析师筛选
+            const filterPA = document.getElementById('filter-pa')?.checked || false;
+            const filterMR = document.getElementById('filter-mr')?.checked || false;
+            const filterQMR = document.getElementById('filter-qmr')?.checked || false;
+            const filterFPD = document.getElementById('filter-fpd')?.checked || false;
+            
+            // 构建选中分析师列表
+            const selectedAnalysts = [];
+            if (filterPA) selectedAnalysts.push('pa分析师');
+            if (filterMR) selectedAnalysts.push('mr分析师');
+            if (filterQMR) selectedAnalysts.push('qmr分析师');
+            if (filterFPD) selectedAnalysts.push('fpd分析师');
 
             // Filter grouped data
             let filteredGroups = Object.entries(groupedData).filter(([optionId, analyses]) => {
@@ -199,6 +233,15 @@
                 if (tickerFilter && !optionId.startsWith(tickerFilter)) return false;
                 if (signalFilter && !analyses.some(a => a.trade_signal === signalFilter)) return false;
                 if (directionFilter && !analyses.some(a => a.direction === directionFilter)) return false;
+                
+                // 分析师筛选 - 如果选中了分析师，则这些分析师必须都建议交易
+                if (selectedAnalysts.length > 0) {
+                    const hasAllSelectedTrading = selectedAnalysts.every(analyst => {
+                        const analystData = analyses.find(a => a.channel === analyst);
+                        return analystData && analystData.trade_signal === '交易';
+                    });
+                    if (!hasAllSelectedTrading) return false;
+                }
                 
                 // Date filtering - check if any analysis falls within date range
                 if (dateStart || dateEnd) {
