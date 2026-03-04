@@ -474,6 +474,14 @@
             document.getElementById('filter-date-start').value = '';
             document.getElementById('filter-date-end').value = '';
             document.getElementById('sort-by').value = 'time-desc';
+            // 重置分析师筛选
+            document.getElementById('filter-pa').checked = false;
+            document.getElementById('filter-mr').checked = false;
+            document.getElementById('filter-qmr').checked = false;
+            document.getElementById('filter-fpd').checked = false;
+            // 重置交易共识比例
+            document.getElementById('filter-consensus').value = '50';
+            document.getElementById('consensus-value').textContent = '50';
             renderOptions();
         }
     </script>
